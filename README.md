@@ -92,7 +92,7 @@ project/
 ## Clone Repository
 
 ```bash id="4jlwm3"
-git clone <your-repository-url>
+git clone https://github.com/Pankajthapa4/production-ai-playground.git
 cd production-rag-platform
 ```
 
@@ -336,5 +336,5 @@ MIT License
 Pankaj Thapa
 
 LinkedIn:
-[LinkedIn Profile](www.linkedin.com/in/pankaj-thapa-0ba85055)
+[LinkedIn Profile][https://in.linkedin.com/in/pankaj-thapa-0ba85055]
 **
