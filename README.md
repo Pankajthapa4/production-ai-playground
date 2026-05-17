@@ -18,6 +18,7 @@ Production-ready Retrieval-Augmented Generation (RAG) platform built with FastAP
 * Groq LLM Integration
 * Async API Processing
 * Production-style Retrieval Pipeline
+* Advanced RAG Techniques
 
 ---
 
@@ -325,6 +326,78 @@ This project was built to explore real-world production AI architecture patterns
 * Production AI Engineering
 
 ---
+
+# Advance Rag Technique
+1. Recursive Chunking
+
+Bad chunking destroys RAG quality.
+
+The project was upgraded from:
+
+Fixed Chunking
+
+to:
+
+Recursive Character Chunking
+
+using:
+
+RecursiveCharacterTextSplitter
+
+Chunking directly impacts:
+
+retrieval quality
+reranking quality
+hallucinations
+final LLM answers
+
+Recursive chunking preserves:
+
+paragraphs
+sentence boundaries
+semantic continuity
+
+
+2. Parent-Child Retrieval (Enterprise RAG)
+ Traditional RAG systems usually retrieve only small chunks for semantic similarity search.
+
+While small chunks improve retrieval precision, they often lose surrounding context required for high-quality LLM reasoning.
+
+This project now supports Parent-Child Retrieval Architecture.
+
+Architecture:
+
+User Query
+   ↓
+Semantic Search On Child Chunks
+   ↓
+Matched Child Chunk
+   ↓
+Load Parent Chunk
+   ↓
+Send Rich Context To LLM
+Child Chunks
+
+Small chunks are optimized for:
+
+semantic retrieval
+hybrid search
+reranking precision
+accurate matching
+Parent Chunks
+
+Large contextual chunks are optimized for:
+
+richer LLM context
+contextual reasoning
+complete answers
+hallucination reduction
+Production Insight
+retrieve small
+expand large
+
+This is a widely used enterprise RAG optimization strategy.
+
 
 # License
 
