@@ -114,6 +114,8 @@ def add_documents_to_qdrant(
             vector=embeddings[index].tolist(),
             payload={
                 "document_id": document_id,
+                "parent_id": chunk.get("parent_id"),
+                "parent_text": chunk.get("parent_text"),
                 "chunk_id": f"{document_id}_chunk_{index}",
                 "text": chunk["text"],
                 "file_name": file_name,
@@ -314,4 +316,99 @@ def calculate_bm25_score(
 
     scores = bm25.get_scores(tokenized_query)
 
-    return scores     
+    return scores    
+
+
+async def debug_parent_child(
+    tenant_id: str | None = None,
+    document_id: str | None = None,
+    uploaded_by: str | None = None,
+    document_type: str | None = None,
+    limit: int = 3
+):
+
+    filter_conditions = []
+
+    # =====================================================
+    # Filter By Tenant
+    # =====================================================
+    if tenant_id:
+        filter_conditions.append(
+            FieldCondition(
+                key="tenant_id",
+                match=MatchValue(value=tenant_id)
+            )
+        )
+
+    # =====================================================
+    # Filter By Document
+    # =====================================================
+    if document_id:
+        filter_conditions.append(
+            FieldCondition(
+                key="document_id",
+                match=MatchValue(value=document_id)
+            )
+        )
+
+    # =====================================================
+    # Filter By Uploaded User
+    # =====================================================
+    if uploaded_by:
+        filter_conditions.append(
+            FieldCondition(
+                key="uploaded_by",
+                match=MatchValue(value=uploaded_by)
+            )
+        )
+
+    # =====================================================
+    # Filter By Document Type
+    # =====================================================
+    if document_type:
+        filter_conditions.append(
+            FieldCondition(
+                key="document_type",
+                match=MatchValue(value=document_type)
+            )
+        )
+
+    query_filter = None
+
+    # =====================================================
+    # Create Qdrant Filter
+    # =====================================================
+    if filter_conditions:
+        query_filter = Filter(
+            must=filter_conditions
+        )
+
+    # =====================================================
+    # Scroll Qdrant Data
+    # =====================================================
+    results = qdrant_client.scroll(
+        collection_name=COLLECTION_NAME,
+        limit=limit,
+        scroll_filter=query_filter,
+        with_payload=True,
+        with_vectors=False
+    )
+
+    points = results[0]
+
+    # =====================================================
+    # Return Parent Child Structure
+    # =====================================================
+    return [
+        {
+            "child_chunk": point.payload.get("text", ""),
+            "parent_id": point.payload.get("parent_id", ""),
+            "parent_chunk": point.payload.get("parent_text", ""),
+            "page_number": point.payload.get("page_number", ""),
+            "tenant_id": point.payload.get("tenant_id", ""),
+            "document_id": point.payload.get("document_id", ""),
+            "uploaded_by": point.payload.get("uploaded_by", ""),
+            "document_type": point.payload.get("document_type", "")
+        }
+        for point in points
+    ]

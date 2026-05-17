@@ -5,6 +5,8 @@ from app.services.redis_service import redis_client
 from app.crews.architecture_crew import run_architecture_crew
 from contextlib import asynccontextmanager
 from app.rag.qdrant_store import setup_qdrant_collection
+
+
 from app.services.memory_service import (
     get_conversation_history,
     clear_conversation_history
@@ -14,12 +16,14 @@ import uuid
 
 from app.rag.document_loader import (
     load_pdf_pages,
-    chunk_pages
+    chunk_pages_parent_child
 )
 
 from app.rag.qdrant_store import (
     add_documents_to_qdrant,
-    search_qdrant
+    search_qdrant,
+     debug_parent_child
+
 )
 
 @asynccontextmanager
@@ -121,7 +125,7 @@ async def upload_pdf(
 
     pages = load_pdf_pages(file_path)
 
-    chunks = chunk_pages(pages)
+    chunks = chunk_pages_parent_child(pages)
 
     total_chunks = add_documents_to_qdrant(
         chunks=chunks,
@@ -173,4 +177,23 @@ async def reset_qdrant():
 
     return {
         "message": "Qdrant collection deleted successfully"
-    }        
+    }      
+
+@app.get("/debug-parent-child")
+async def debug_parent_child_api(
+    tenant_id: str | None = None,
+    document_id: str | None = None,
+    uploaded_by: str | None = None,
+    document_type: str | None = None,
+    limit: int = 3
+):
+
+    results = await debug_parent_child(
+        tenant_id=tenant_id,
+        document_id=document_id,
+        uploaded_by=uploaded_by,
+        document_type=document_type,
+        limit=limit
+    )
+
+    return results

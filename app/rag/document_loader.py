@@ -1,4 +1,31 @@
 from pypdf import PdfReader
+from langchain_text_splitters import (
+    RecursiveCharacterTextSplitter
+)
+
+child_splitter = RecursiveCharacterTextSplitter(
+   chunk_size=500,
+    chunk_overlap=100,
+    separators=[
+        "\n\n",
+        "\n",
+        ". ",
+        " ",
+        ""
+    ]
+)
+
+parent_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=2000,
+    chunk_overlap=200,
+    separators=[
+        "\n\n",
+        "\n",
+        ". ",
+        " ",
+        ""
+    ]
+)
 
 
 def load_pdf_pages(file_path: str):
@@ -18,29 +45,65 @@ def load_pdf_pages(file_path: str):
     return pages
 
 
-def chunk_pages(
-    pages: list,
-    chunk_size: int = 800,
-    overlap: int = 100
-):
+def chunk_pages_parent_child(pages):
+
     chunks = []
 
+    parent_index = 0
+    child_index = 0
+
+    # =====================================================
+    # Iterate each PDF page
+    # =====================================================
     for page in pages:
-        text = page["text"]
+
         page_number = page["page_number"]
 
-        start = 0
+        text = page["text"]
 
-        while start < len(text):
-            end = start + chunk_size
+        # =================================================
+        # STEP 1:
+        # Create LARGE parent chunks
+        # =================================================
+        parent_chunks = parent_splitter.split_text(text)
 
-            chunk = text[start:end]
+        # =================================================
+        # STEP 2:
+        # Create small child chunks from each parent
+        # =================================================
+        for parent_chunk in parent_chunks:
 
-            chunks.append({
-                "text": chunk,
-                "page_number": page_number
-            })
+            parent_id = f"parent_{parent_index}"
 
-            start += chunk_size - overlap
+            child_chunks = child_splitter.split_text(
+                parent_chunk
+            )
+
+            # =============================================
+            # STEP 3:
+            # Store child chunks with parent reference
+            # =============================================
+            for child_chunk in child_chunks:
+
+                chunks.append({
+
+                    # Small retrieval chunk
+                    "text": child_chunk,
+
+                    # Parent relation
+                    "parent_id": parent_id,
+
+                    # Full parent chunk
+                    "parent_text": parent_chunk,
+
+                    # Metadata
+                    "page_number": page_number,
+                    "parent_index": parent_index,
+                    "child_index": child_index
+                })
+
+                child_index += 1
+
+            parent_index += 1
 
     return chunks
