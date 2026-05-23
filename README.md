@@ -398,6 +398,48 @@ expand large
 
 This is a widely used enterprise RAG optimization strategy.
 
+# Phase — RAG Evaluation using RAGAS
+
+After implementing retrieval improvements like:
+
+- Recursive Chunking
+- Parent-Child Chunking
+- Hybrid Search
+- Reranking
+- Query Rewriting
+
+the next challenge was:
+
+> How do we actually measure whether the RAG pipeline is improving?
+
+This phase introduces:
+
+## RAGAS (Retrieval-Augmented Generation Assessment)
+
+RAGAS is an evaluation framework designed specifically for RAG systems.
+
+Instead of manually checking AI answers, RAGAS helps evaluate the quality of:
+
+- Retrieval
+- Context grounding
+- Hallucination prevention
+- Final answer quality
+
+---
+
+# What We Implemented
+
+The evaluation pipeline performs:
+
+```text
+Question
+↓
+Retrieve context from Qdrant
+↓
+Generate answer using Groq LLM
+↓
+Evaluate answer quality using RAGAS
+
 
 # License
 
