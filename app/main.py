@@ -263,3 +263,24 @@ Question:
             status_code=500,
             detail=repr(ex)
         )
+
+@app.get("/rag-answer")
+async def rag_answer(
+    query: str,
+    tenant_id: str | None = None
+):
+    try:
+        from app.rag.citation_service import answer_with_citations
+
+        result = await answer_with_citations(
+            query=query,
+            tenant_id=tenant_id
+        )
+
+        return result
+
+    except Exception as ex:
+        raise HTTPException(
+            status_code=500,
+            detail=str(ex)
+        )        

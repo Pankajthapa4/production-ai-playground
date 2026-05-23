@@ -1,0 +1,78 @@
+from app.rag.qdrant_store import search_qdrant
+from app.services.ai_service import call_llm
+
+
+def build_citation_context(documents: list):
+    context_parts = []
+
+    for index, doc in enumerate(documents, start=1):
+        context_parts.append(f"""
+[Source {index}]
+File: {doc.get("file_name")}
+Page: {doc.get("page_number")}
+Chunk ID: {doc.get("chunk_id")}
+
+Text:
+{doc.get("text")}
+""")
+
+    return "\n\n".join(context_parts)
+
+
+def build_sources(documents: list):
+    sources = []
+
+    for index, doc in enumerate(documents, start=1):
+        sources.append({
+            "source_id": index,
+            "file_name": doc.get("file_name"),
+            "page_number": doc.get("page_number"),
+            "document_id": doc.get("document_id"),
+            "chunk_id": doc.get("chunk_id"),
+            "score": doc.get("rerank_score") or doc.get("hybrid_score")
+        })
+
+    return sources
+
+
+async def answer_with_citations(
+    query: str,
+    tenant_id: str | None = None
+):
+    documents = search_qdrant(
+        query=query,
+        tenant_id=tenant_id,
+        top_k=3
+    )
+
+    if not documents:
+        return {
+            "answer": "No relevant context found.",
+            "sources": []
+        }
+
+    context = build_citation_context(documents)
+
+    response = await call_llm(
+        session_id="citation-rag-session",
+        message=f"""
+Use the context below to answer the question.
+
+Rules:
+- Answer only from the provided context.
+- If the answer is found, cite the source like [Source 1].
+- If the answer is not found, say: "I could not find this information in the provided documents."
+
+Context:
+{context}
+
+Question:
+{query}
+""",
+        system_prompt="You are a grounded RAG assistant that always cites sources."
+    )
+
+    return {
+        "answer": response["reply"],
+        "sources": build_sources(documents)
+    }
