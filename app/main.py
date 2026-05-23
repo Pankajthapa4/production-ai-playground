@@ -2,9 +2,11 @@ from fastapi import FastAPI, HTTPException
 from app.schemas import ChatRequest, ChatResponse
 from app.services.ai_service import call_llm
 from app.services.redis_service import redis_client
-from app.crews.architecture_crew import run_architecture_crew
+#from app.crews.architecture_crew import run_architecture_crew
+#from app.evaluation.ragas_evaluator import run_ragas_evaluation
+import traceback
 from contextlib import asynccontextmanager
-from app.rag.qdrant_store import setup_qdrant_collection
+from app.rag.qdrant_store import  setup_qdrant_collection
 
 
 from app.services.memory_service import (
@@ -58,18 +60,14 @@ async def get_memory(session_id: str):
 @app.post("/crew-chat")
 async def crew_chat(request: ChatRequest):
     try:
+        from app.crews.architecture_crew import run_architecture_crew
+
         result = run_architecture_crew(request.message)
 
-        return {
-            "response": result
-        }
+        return {"response": result}
 
     except Exception as ex:
-        print("CrewAI Error:", str(ex))
-        raise HTTPException(
-            status_code=500,
-            detail=str(ex)
-        )
+        raise HTTPException(status_code=500, detail=str(ex))
         
 @app.get("/")
 def health_check():
@@ -197,3 +195,71 @@ async def debug_parent_child_api(
     )
 
     return results
+
+
+
+
+@app.get("/evaluate-rag")
+async def evaluate_rag():
+    try:
+        from app.rag.qdrant_store import retrieve_rag_context
+        from app.evaluation.ragas_evaluator import run_ragas_evaluation
+
+        test_cases = [
+            {
+                "question": "What is Himanshu Joshi phone number?",
+                "ground_truth": "Himanshu Joshi's phone number is (+91) 7579414837."
+            }
+        ]
+
+        rows = []
+
+        for item in test_cases:
+            rag_result = await retrieve_rag_context(
+                query=item["question"],
+                tenant_id="tenant_001"
+            )
+
+            response = await call_llm(
+                session_id="ragas-eval-session",
+                message=f"""
+Context:
+{rag_result["context"]}
+
+Question:
+{item["question"]}
+""",
+                system_prompt="Answer only from the provided context."
+            )
+
+            rows.append({
+                "question": str(item["question"]),
+                "answer": str(response["reply"]),
+                "contexts": [
+                    str(doc["text"])
+                    for doc in rag_result["documents"]
+                ],
+                "ground_truth": str(item["ground_truth"])
+            })
+
+        result = await run_ragas_evaluation(rows)
+
+        df = result.to_pandas()
+
+        safe_results = df.astype(str).to_dict(
+            orient="records"
+        )
+
+        return {
+            "message": "RAG evaluation completed successfully",
+            "results": safe_results
+        }
+
+    except Exception as ex:
+        import traceback
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=repr(ex)
+        )

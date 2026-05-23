@@ -1,5 +1,6 @@
 from qdrant_client import QdrantClient
 from app.rag.reranker import rerank_documents
+
 from qdrant_client.models import (
     Distance,
     VectorParams,
@@ -412,3 +413,26 @@ async def debug_parent_child(
         }
         for point in points
     ]
+
+
+
+
+async def retrieve_rag_context(
+    query: str,
+    tenant_id: str | None = None
+):
+    documents = search_qdrant(
+        query=query,
+        tenant_id=tenant_id,
+        top_k=3
+    )
+
+    return {
+        "query": query,
+        "documents": documents,
+        "context": "\n\n".join([
+            doc["text"] for doc in documents
+        ])
+    }
+
+    
