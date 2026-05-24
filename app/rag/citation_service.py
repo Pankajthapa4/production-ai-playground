@@ -1,7 +1,6 @@
 from app.rag.qdrant_store import search_qdrant
 from app.services.ai_service import call_llm
-
-
+from app.rag.context_compressor import compress_context
 def build_citation_context(documents: list):
     context_parts = []
 
@@ -35,7 +34,10 @@ def build_sources(documents: list):
     return sources
 
 
-async def answer_with_citations(
+
+
+
+async def answer_with_citations_extractive_context_compression(
     query: str,
     tenant_id: str | None = None
 ):
@@ -51,10 +53,26 @@ async def answer_with_citations(
             "sources": []
         }
 
-    context = build_citation_context(documents)
+    # Compress retrieved context before sending to LLM
+    compressed_documents = compress_context(
+        query=query,
+        documents=documents,
+        max_sentences_per_doc=3
+    )
+
+    # Fallback: if compression returns nothing, use original documents
+    documents_for_llm = (
+        compressed_documents
+        if compressed_documents
+        else documents
+    )
+
+    context = build_citation_context(
+        documents_for_llm
+    )
 
     response = await call_llm(
-        session_id="citation-rag-session",
+        session_id="citation-rag-compressed-session",
         message=f"""
 Use the context below to answer the question.
 
@@ -74,5 +92,9 @@ Question:
 
     return {
         "answer": response["reply"],
-        "sources": build_sources(documents)
+        "sources": build_sources(documents_for_llm),
+        "compression": {
+            "original_chunks": len(documents),
+            "compressed_chunks": len(documents_for_llm)
+        }
     }
