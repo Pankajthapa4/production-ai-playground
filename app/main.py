@@ -283,4 +283,28 @@ async def rag_answer(
         raise HTTPException(
             status_code=500,
             detail=str(ex)
-        )        
+        ) 
+
+
+@app.get("/rag-answer-llm-compressed")
+async def rag_answer_llm_compressed(
+    query: str,
+    tenant_id: str | None = None
+):
+    try:
+        from app.rag.citation_service import (
+            answer_with_citations_llm_context_compression
+        )
+
+        result = await answer_with_citations_llm_context_compression(
+            query=query,
+            tenant_id=tenant_id
+        )
+
+        return result
+
+    except Exception as ex:
+        raise HTTPException(
+            status_code=500,
+            detail=str(ex)
+        )               

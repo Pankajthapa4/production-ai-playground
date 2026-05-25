@@ -98,3 +98,61 @@ Question:
             "compressed_chunks": len(documents_for_llm)
         }
     }
+
+
+from app.rag.context_compressor import compress_context_with_llm
+
+
+async def answer_with_citations_llm_context_compression(
+    query: str,
+    tenant_id: str | None = None
+):
+    documents = search_qdrant(
+        query=query,
+        tenant_id=tenant_id,
+        top_k=3
+    )
+
+    if not documents:
+        return {
+            "answer": "No relevant context found.",
+            "sources": []
+        }
+
+    compressed_documents = await compress_context_with_llm(
+        query=query,
+        documents=documents
+    )
+
+    context = build_citation_context(
+        compressed_documents
+    )
+
+    response = await call_llm(
+        session_id="citation-rag-llm-compressed-session",
+        message=f"""
+Use the compressed context below to answer the question.
+
+Rules:
+- Answer only from the provided context.
+- If the answer is found, cite the source like [Source 1].
+- If the answer is not found, say: "I could not find this information in the provided documents."
+
+Context:
+{context}
+
+Question:
+{query}
+""",
+        system_prompt="You are a grounded RAG assistant that always cites sources."
+    )
+
+    return {
+        "answer": response["reply"],
+        "sources": build_sources(documents),
+        "compression": {
+            "type": "llm_based",
+            "original_chunks": len(documents),
+            "compressed_chunks": len(compressed_documents)
+        }
+    }    
