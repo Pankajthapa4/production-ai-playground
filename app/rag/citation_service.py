@@ -1,6 +1,7 @@
 from app.rag.qdrant_store import search_qdrant
 from app.services.ai_service import call_llm
 from app.rag.context_compressor import compress_context
+from app.rag.context_compressor import compress_context_by_reranker
 def build_citation_context(documents: list):
     context_parts = []
 
@@ -155,4 +156,55 @@ Question:
             "original_chunks": len(documents),
             "compressed_chunks": len(compressed_documents)
         }
-    }    
+    }   
+
+
+
+
+
+async def answer_with_reranker_compression(
+    query: str,
+    tenant_id: str | None = None
+):
+    # retrieve more first
+    documents = search_qdrant(
+        query=query,
+        tenant_id=tenant_id,
+        top_k=10
+    )
+
+    if not documents:
+        return {
+            "answer": "No relevant context found.",
+            "sources": []
+        }
+
+    # compress by keeping only best reranked chunks
+    compressed_documents = compress_context_by_reranker(
+        documents=documents,
+        top_n=2
+    )
+
+    context = build_citation_context(compressed_documents)
+
+    response = await call_llm(
+        session_id="reranker-compression-session",
+        message=f"""
+Context:
+{context}
+
+Question:
+{query}
+""",
+        system_prompt="Answer only from the provided context and cite sources."
+    )
+
+    return {
+        "answer": response["reply"],
+        "sources": build_sources(compressed_documents),
+        "compression": {
+            "type": "reranker_based",
+            "retrieved_chunks": len(documents),
+            "sent_to_llm": len(compressed_documents)
+        }
+    }     

@@ -108,4 +108,16 @@ Return compressed context only.
             "document_id": "",
             "chunk_id": "llm_compressed_context"
         }
-    ]    
+    ] 
+
+def compress_context_by_reranker(
+    documents: list[dict],
+    top_n: int = 2
+):
+    sorted_docs = sorted(
+        documents,
+        key=lambda doc: doc.get("rerank_score", doc.get("hybrid_score", 0)),
+        reverse=True
+    )
+
+    return sorted_docs[:top_n]       

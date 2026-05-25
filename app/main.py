@@ -307,4 +307,17 @@ async def rag_answer_llm_compressed(
         raise HTTPException(
             status_code=500,
             detail=str(ex)
-        )               
+        )
+        
+
+@app.get("/rag-reranker-compression")
+async def rag_reranker_compression(
+    query: str,
+    tenant_id: str | None = None
+):
+    from app.rag.citation_service import answer_with_reranker_compression
+
+    return await answer_with_reranker_compression(
+        query=query,
+        tenant_id=tenant_id
+    )                       
